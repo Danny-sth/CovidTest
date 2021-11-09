@@ -1,21 +1,20 @@
 import io.restassured.RestAssured;
 import io.restassured.specification.RequestSpecification;
 import org.json.JSONObject;
-import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 public class Request {
     private static String token;
+    private static String session_key = null;
+    private static List<String> idList = new ArrayList<>();
 
-    @Test
     public void login(String URL,
                       String LOGIN,
                       String PASSWORD) {
@@ -34,48 +33,46 @@ public class Request {
     }
 
     public void createFiles(String mode) {
-        Path rootFolder = Path.of("/Users/denis/Desktop/Care Mentor AI/Тестовые данные/СT грудной клетки/CT | Covid-19/covid");
+        Path rootFolder = Path.of("/home/danny/covid");
         try {
-            Stream<Path> folders = Files.walk(rootFolder).filter(Files::isDirectory);
-            folders.forEach(folder -> {
-                try {
-                    Files.walk(folder).filter(Files::isRegularFile).forEach(this::fooMethod);
-                } catch (IOException e) {
-                    e.printStackTrace();
+            List<Path> folders = Files.walk(rootFolder)
+                    .filter(Files::isDirectory).collect(Collectors.toList());
+            for (Path folder : folders) {
+                List<Path> filesPaths = Files.walk(folder)
+                        .filter(Files::isRegularFile).collect(Collectors.toList());
+                for (Path filePath : filesPaths) {
+                    File file = new File(filePath.toString());
+                    uploadFile(mode, file);
                 }
-            });
+            }
+            createRecord(mode);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        Stream<Path> filesStream;
-        try {
-            filesStream = Files.walk(Paths
-                    .get());
-            RestAssured.given().multiPart("file[]", filesStream)
-                    .when().post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token)
-                    .then().extract().body().asString();
-        } catch (IOException e) {
+    }
+
+    private void uploadFile(String mode, File file) {
+        if (session_key == null) {
+            session_key = RestAssured.given()
+                    .multiPart("file", file, "multipart/form-data")
+                    .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token)
+                    .then().extract().body().path("_session_key").toString();
+        } else {
+            RestAssured.given()
+                    .multiPart("file", file, "multipart/form-data")
+                    .multiPart("_session_key", session_key)
+                    .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token)
+                    .then().extract().body().path("_session_key").toString();
         }
     }
 
-    List<Long> toCheck = new ArrayList<>();
-
-    private void fooMethod(Path pathToFile) {
-        beforeLogic();
-        long id = upload();
-        toCheck.add(id);
-        ExecutorService
+    private void createRecord(String mode) {
+        String id = RestAssured.given().multiPart("mode", mode)
+                .multiPart("token", token)
+                .multiPart("_session_key", session_key)
+                .post("https://test-box-webshow.cmai.tech/api/v2/records?mode=" + mode +
+                        "&token=" + token + "&_session_key=" + session_key)
+                .then().extract().body().path("id").toString();
+        idList.add(id);
     }
-
-    private void beforeLogic() {
-    }
-
-    private long upload() {
-        return 0;
-    }
-
-    private void afterLogic(long id) {
-
-    }
-
 }
