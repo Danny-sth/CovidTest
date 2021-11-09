@@ -1,4 +1,5 @@
 import io.restassured.RestAssured;
+import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import org.json.JSONObject;
 
@@ -14,6 +15,8 @@ public class Request {
     private static String token;
     private static String session_key = null;
     private static List<String> idList = new ArrayList<>();
+
+    Study study;
 
     public void login(String URL,
                       String LOGIN,
@@ -74,5 +77,37 @@ public class Request {
                         "&token=" + token + "&_session_key=" + session_key)
                 .then().extract().body().path("id").toString();
         idList.add(id);
+    }
+
+    protected void getRecord() {
+        if (idList.isEmpty()) {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } else {
+            for (String id : idList) {
+                Response response = RestAssured.given()
+                        .multiPart("token", Request.token)
+                        .post("https://test-box-webshow.cmai.tech/api/v2/records/" + id +
+                                "?token=" + Request.token);
+                if (response.body().path("status") == "2") {
+                    continue;
+                } else {
+                    study.setId(response.body().path("id"));
+                    study.setIsHealthy(response.body().path("is_healthy"));
+                    study.setProb(response.body().path("prob"));
+                    study.setStatus(response.body().path("status"));
+                    study.setStatusText(response.body().path("status_text"));
+                    idList.remove(id);
+                    exportToTable(study);
+                }
+            }
+        }
+    }
+
+    private void exportToTable(Study study) {
+        // метод для записи данных об исследовании в таблицу Excel
     }
 }
