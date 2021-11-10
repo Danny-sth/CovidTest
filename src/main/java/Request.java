@@ -92,12 +92,21 @@ public class Request {
                         .multiPart("token", Request.token)
                         .post("https://test-box-webshow.cmai.tech/api/v2/records/" + id +
                                 "?token=" + Request.token);
-                if (response.body().path("status") == "2") {
+                String status = response.body().path("status");
+                if (status == "2") {
                     continue;
-                } else {
+                } else if (status == "10") {
                     study.setId(response.body().path("id"));
                     study.setIsHealthy(response.body().path("is_healthy"));
+
+                    // prob после теста закоментировать, его вырежут из ответа
                     study.setProb(response.body().path("prob"));
+                    study.setStatus(response.body().path("status"));
+                    study.setStatusText(response.body().path("status_text"));
+                    idList.remove(id);
+                    exportToTable(study);
+                } else {
+                    study.setId(response.body().path("id"));
                     study.setStatus(response.body().path("status"));
                     study.setStatusText(response.body().path("status_text"));
                     idList.remove(id);
