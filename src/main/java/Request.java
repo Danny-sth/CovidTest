@@ -7,15 +7,15 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 public class Request {
     private static String token;
     private static String session_key = null;
-    private static final List<String> idList = new ArrayList<>();
+    private static final List<String> idList = new CopyOnWriteArrayList<>();
 
     Study study = new Study();
 
@@ -40,27 +40,56 @@ public class Request {
 
     public void createFiles(String mode) {
         System.out.println("Create Files is Started");
-        Path rootFolder = Path.of("/Users/denis/Desktop/Care Mentor AI/Тестовые данные/СT грудной клетки/CT | Covid-19/root/covid");
+        Path rootFolder = Path.of("/Users/denis/Desktop/Care Mentor AI/Тестовые данные/СT грудной клетки/CT | Covid-19/root");
         try {
+            // FIXME try to remove rootFolder filter
             List<Path> folders = Files.walk(rootFolder)
-                    .filter(Files::isDirectory).collect(Collectors.toList());
+                    .filter(Files::isDirectory)
+                    .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
-                List<Path> filesPaths = Files.walk(folder)
-                        .filter(Files::isRegularFile).collect(Collectors.toList());
-                for (Path filePath : filesPaths) {
-                    File file = new File(filePath.toString());
-                    uploadFile(mode, file);
+                System.out.println("Working with folder");
+                try {
+                    List<Path> files = Files.walk(folder)
+                            .filter(Files::isRegularFile)
+                            .filter(this::isNotHidden)
+                            .collect(Collectors.toList());
+                    for (Path file : files) {
+                        uploadFile(mode, file.toFile());
+                    }
+                    createRecord(mode);
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-            createRecord(mode);
+            doCheck(idList);
         } catch (IOException e) {
             e.printStackTrace();
         }
         System.out.println("Create Files is DONE");
     }
 
+    private void doCheck(List<String> idList) {
+        System.out.println("Do check with " + idList);
+        if (idList.isEmpty()) return;
+        String firstID = idList.get(0);
+        if (status == 10) {
+            write()
+            idList.remove(id);
+        }
+        doCheck(idList);
+    }
+
+    private boolean isNotHidden(Path path) {
+        try {
+            return !Files.isHidden(path);
+        } catch (IOException e) {
+            System.err.println(e);
+            return true;
+        }
+    }
+
     private void uploadFile(String mode, File file) {
-//        System.out.println("Upload is Started");
+        System.out.println("Upload is Started for " + file.toPath().getFileName());
 //        System.out.println(session_key);
         if (session_key == null) {
             session_key = RestAssured.given()
@@ -74,7 +103,7 @@ public class Request {
                     .multiPart("_session_key", session_key)
                     .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token);
 //            System.out.println(session_key);
-//            System.out.println("Upload is Done");
+            System.out.println("Upload is Done");
         }
     }
 
