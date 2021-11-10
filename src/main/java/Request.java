@@ -86,15 +86,23 @@ public class Request {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            System.out.println("getRecord: List is Empty");
         } else {
+            System.out.println("getRecord: List is NOT Empty");
             for (String id : idList) {
                 Response response = RestAssured.given()
                         .multiPart("token", Request.token)
                         .post("https://test-box-webshow.cmai.tech/api/v2/records/" + id +
                                 "?token=" + Request.token);
                 String status = response.body().path("status");
+                System.out.println("Status is " + status);
                 if (status == "2") {
-                    continue;
+                    try {
+                        Thread.sleep(20000);
+                        getRecord();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 } else if (status == "10") {
                     study.setId(response.body().path("id"));
                     study.setIsHealthy(response.body().path("is_healthy"));
@@ -103,20 +111,20 @@ public class Request {
                     study.setProb(response.body().path("prob"));
                     study.setStatus(response.body().path("status"));
                     study.setStatusText(response.body().path("status_text"));
+                    System.out.println(study.toString());
                     idList.remove(id);
-                    exportToTable(study);
+                    ExcelTable.fillTable(study);
+                    getRecord();
                 } else {
                     study.setId(response.body().path("id"));
                     study.setStatus(response.body().path("status"));
                     study.setStatusText(response.body().path("status_text"));
                     idList.remove(id);
-                    exportToTable(study);
+                    ExcelTable.fillTable(study);
                 }
             }
         }
     }
 
-    private void exportToTable(Study study) {
-        // метод для записи данных об исследовании в таблицу Excel
-    }
+
 }
