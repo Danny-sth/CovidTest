@@ -13,6 +13,7 @@ public class ExcelTable extends XSSFSheet {
     private static int rowCounter = 0;
 
     public static void fillTable(Study study) {
+        System.out.println("fillTable is Started, rowCounter is " + rowCounter);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet();
 
@@ -48,5 +49,6 @@ public class ExcelTable extends XSSFSheet {
             e.printStackTrace();
         }
         rowCounter += 2;
+        System.out.println(rowCounter + "\n" + "fillTable is Done");
     }
 }
