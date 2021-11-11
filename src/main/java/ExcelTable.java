@@ -9,7 +9,7 @@ import java.io.IOException;
 public class ExcelTable extends XSSFSheet {
 
     private static final File file =
-            new File("/Users/denis/Desktop/Table.xlsx");
+            new File("/home/danny/covid");
     private static int rowCounter = 0;
 
     public static void fillTable(Study study) {

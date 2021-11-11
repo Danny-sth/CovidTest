@@ -13,10 +13,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 public class Request {
+    private static final List<String> idList = new CopyOnWriteArrayList<>();
     private static String token;
     private static String session_key = null;
-    private static final List<String> idList = new CopyOnWriteArrayList<>();
-
     Study study = new Study();
 
     public void login(String URL,
@@ -40,7 +39,7 @@ public class Request {
 
     public void createFiles(String mode) {
         System.out.println("Create Files is Started");
-        Path rootFolder = Path.of("/Users/denis/Desktop/Care Mentor AI/Тестовые данные/СT грудной клетки/CT | Covid-19/root");
+        Path rootFolder = Path.of("/home/danny/covid");
         try {
             // FIXME try to remove rootFolder filter
             List<Path> folders = Files.walk(rootFolder)
@@ -55,6 +54,7 @@ public class Request {
                             .collect(Collectors.toList());
                     for (Path file : files) {
                         uploadFile(mode, file.toFile());
+                        System.out.println("Last File upload");
                     }
                     createRecord(mode);
                 } catch (IOException e) {
@@ -69,14 +69,50 @@ public class Request {
     }
 
     private void doCheck(List<String> idList) {
+        LinkedHashMap<?, ?> result_localized;
         System.out.println("Do check with " + idList);
-        if (idList.isEmpty()) return;
-        String firstID = idList.get(0);
-        if (status == 10) {
-            write()
-            idList.remove(id);
+        if (idList.isEmpty())
+            return;
+        else {
+            String firstID = idList.get(0);
+            System.out.println("getRecord: List is NOT Empty");
+            for (String id : idList) {
+                Response response = RestAssured.given()
+                        .multiPart("token", token)
+                        .get("https://test-box-webshow.cmai.tech/api/v2/records/" + firstID +
+                                "?token=" + token);
+                String status = response.getBody().path("status").toString();
+                System.out.println("Status is " + status);
+                if (status.equals("2")) {
+                    System.out.println("Sleep 20 sec");
+                    try {
+                        Thread.sleep(20000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } else if (status.equals("10")) {
+                    System.out.println("Status is 10");
+                    study.setId(response.body().path("id").toString());
+                    result_localized = response.body().path("result_localized");
+                    study.setIsHealthy(result_localized.get("is_healthy").toString());
+
+                    // prob после теста закоментировать, его вырежут из ответа
+                    study.setProb(result_localized.get("prob").toString());
+                    study.setStatus(response.body().path("status").toString());
+                    study.setStatusText(response.body().path("status_text"));
+                    System.out.println(study.toString());
+                    idList.remove(firstID);
+                    ExcelTable.fillTable(study);
+                } else {
+                    study.setId(response.body().path("id").toString());
+                    study.setStatus(response.body().path("status").toString());
+                    study.setStatusText(response.body().path("status_text"));
+                    idList.remove(id);
+                    ExcelTable.fillTable(study);
+                }
+                doCheck(idList);
+            }
         }
-        doCheck(idList);
     }
 
     private boolean isNotHidden(Path path) {
@@ -90,13 +126,13 @@ public class Request {
 
     private void uploadFile(String mode, File file) {
         System.out.println("Upload is Started for " + file.toPath().getFileName());
-//        System.out.println(session_key);
+        System.out.println(session_key);
         if (session_key == null) {
             session_key = RestAssured.given()
                     .multiPart("file", file, "multipart/form-data")
                     .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token)
                     .then().extract().response().path("_session_key").toString();
-//            System.out.println(session_key);
+            System.out.println("First file upload - " + session_key);
         } else {
             RestAssured.given()
                     .multiPart("file", file, "multipart/form-data")
@@ -116,61 +152,8 @@ public class Request {
                         "&token=" + token + "&_session_key=" + session_key)
                 .then().extract().body().path("id").toString();
         idList.add(id);
+        session_key = null;
         System.out.println("Create Record is Done, ID = " + id);
+        System.out.println(session_key);
     }
-
-    protected void getRecord() {
-        LinkedHashMap<?, ?> result_localized;
-        if (idList.isEmpty()) {
-            try {
-                System.out.println("getRecord: List is Empty");
-                System.out.println("Sleep 30 sec");
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            getRecord();
-        } else {
-            System.out.println("getRecord: List is NOT Empty");
-            for (String id : idList) {
-                Response response = RestAssured.given()
-                        .multiPart("token", token)
-                        .get("https://test-box-webshow.cmai.tech/api/v2/records/" + id +
-                                "?token=" + token);
-                String status = response.getBody().path("status").toString();
-                System.out.println("Status is " + status);
-                if (status.equals("2")) {
-                    System.out.println("Sleep 20 sec");
-                    try {
-                        Thread.sleep(20000);
-                        getRecord();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                } else if (status.equals("10")) {
-                    System.out.println("Status is 10");
-                    study.setId(response.body().path("id").toString());
-                    result_localized = response.body().path("result_localized");
-                    study.setIsHealthy(result_localized.get("is_healthy").toString());
-
-                    // prob после теста закоментировать, его вырежут из ответа
-                    study.setProb(result_localized.get("prob").toString());
-                    study.setStatus(response.body().path("status").toString());
-                    study.setStatusText(response.body().path("status_text"));
-                    System.out.println(study.toString());
-                    idList.remove(id);
-                    ExcelTable.fillTable(study);
-                    getRecord();
-                } else {
-                    study.setId(response.body().path("id").toString());
-                    study.setStatus(response.body().path("status").toString());
-                    study.setStatusText(response.body().path("status_text"));
-                    idList.remove(id);
-                    ExcelTable.fillTable(study);
-                }
-            }
-        }
-    }
-
-
 }
