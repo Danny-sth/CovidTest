@@ -8,15 +8,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 public class Request {
     private static final List<String> idList = new CopyOnWriteArrayList<>();
+    static List<Study> studies = new LinkedList<>();
     private static String token;
     private static String session_key = null;
-    Study study = new Study();
 
     public void login(String URL,
                       String LOGIN,
@@ -39,14 +40,14 @@ public class Request {
 
     public void createFiles(String mode) {
         System.out.println("Create Files is Started");
-        Path rootFolder = Path.of("/home/danny/covid");
+        Path rootFolder = Path.of(Environment.rootFolder);
         try {
             // FIXME try to remove rootFolder filter
             List<Path> folders = Files.walk(rootFolder)
                     .filter(Files::isDirectory)
                     .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
-                System.out.println("Working with folder");
+                System.out.println("Working with next folder");
                 try {
                     List<Path> files = Files.walk(folder)
                             .filter(Files::isRegularFile)
@@ -54,18 +55,18 @@ public class Request {
                             .collect(Collectors.toList());
                     for (Path file : files) {
                         uploadFile(mode, file.toFile());
-                        System.out.println("Last File upload");
                     }
+                    System.out.println("Last File in folder is upload");
                     createRecord(mode);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
+            System.out.println("Create Files is DONE");
             doCheck(idList);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Create Files is DONE");
     }
 
     private void doCheck(List<String> idList) {
@@ -74,12 +75,11 @@ public class Request {
         if (idList.isEmpty())
             return;
         else {
-            String firstID = idList.get(0);
             System.out.println("getRecord: List is NOT Empty");
             for (String id : idList) {
                 Response response = RestAssured.given()
                         .multiPart("token", token)
-                        .get("https://test-box-webshow.cmai.tech/api/v2/records/" + firstID +
+                        .get(Environment.getEndpoint + id +
                                 "?token=" + token);
                 String status = response.getBody().path("status").toString();
                 System.out.println("Status is " + status);
@@ -91,28 +91,29 @@ public class Request {
                         e.printStackTrace();
                     }
                 } else if (status.equals("10")) {
-                    System.out.println("Status is 10");
-                    study.setId(response.body().path("id").toString());
+                    System.out.println("Status Analyzed (10)");
                     result_localized = response.body().path("result_localized");
-                    study.setIsHealthy(result_localized.get("is_healthy").toString());
-
-                    // prob после теста закоментировать, его вырежут из ответа
-                    study.setProb(result_localized.get("prob").toString());
-                    study.setStatus(response.body().path("status").toString());
-                    study.setStatusText(response.body().path("status_text"));
-                    System.out.println(study.toString());
-                    idList.remove(firstID);
-                    ExcelTable.fillTable(study);
-                } else {
-                    study.setId(response.body().path("id").toString());
-                    study.setStatus(response.body().path("status").toString());
-                    study.setStatusText(response.body().path("status_text"));
+                    studies.add(new Study(
+                            response.body().path("id").toString(),
+                            result_localized.get("is_healthy").toString(),
+                            result_localized.get("prob").toString(),  // prob после теста закоментировать, его вырежут из ответа
+                            response.body().path("status").toString(),
+                            response.body().path("status_text")));
                     idList.remove(id);
-                    ExcelTable.fillTable(study);
+                    System.out.println("1 study was added, studies - " + studies);
+                } else {
+                    studies.add(new Study(
+                            response.body().path("id").toString(),
+                            null, null,
+                            response.body().path("status").toString(),
+                            response.body().path("status_text")));
+                    idList.remove(id);
+                    System.out.println("1 study was added, studies - " + studies);
                 }
-                doCheck(idList);
             }
         }
+        ExcelTable.fillTable(studies);
+        doCheck(idList);
     }
 
     private boolean isNotHidden(Path path) {
@@ -126,21 +127,26 @@ public class Request {
 
     private void uploadFile(String mode, File file) {
         System.out.println("Upload is Started for " + file.toPath().getFileName());
-        System.out.println(session_key);
-        if (session_key == null) {
-            session_key = RestAssured.given()
-                    .multiPart("file", file, "multipart/form-data")
-                    .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token)
-                    .then().extract().response().path("_session_key").toString();
-            System.out.println("First file upload - " + session_key);
-        } else {
-            RestAssured.given()
-                    .multiPart("file", file, "multipart/form-data")
-                    .multiPart("_session_key", session_key)
-                    .post("https://test-box-webshow.cmai.tech/api/v2/records/file?mode=" + mode + "&token=" + token);
-//            System.out.println(session_key);
-            System.out.println("Upload is Done");
+//        System.out.println(session_key);
+        try {
+            if (session_key == null) {
+                session_key = RestAssured.given()
+                        .multiPart("file", file, "multipart/form-data")
+                        .post(Environment.createFilesEndpoint + "?mode=" + mode + "&token=" + token)
+                        .then().extract().response().path("_session_key").toString();
+                System.out.println("First file upload - " + session_key);
+            } else {
+                RestAssured.given()
+                        .multiPart("file", file, "multipart/form-data")
+                        .multiPart("_session_key", session_key)
+                        .post(Environment.createFilesEndpoint + "?mode=" + mode + "&token=" + token);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            uploadFile(mode, file);
         }
+//            System.out.println(session_key);
+//            System.out.println("Upload is Done");
     }
 
     private void createRecord(String mode) {
@@ -148,12 +154,12 @@ public class Request {
         String id = RestAssured.given().multiPart("mode", mode)
                 .multiPart("token", token)
                 .multiPart("_session_key", session_key)
-                .post("https://test-box-webshow.cmai.tech/api/v2/records?mode=" + mode +
+                .post(Environment.createRecordEndpoint + "?mode=" + mode +
                         "&token=" + token + "&_session_key=" + session_key)
                 .then().extract().body().path("id").toString();
         idList.add(id);
         session_key = null;
         System.out.println("Create Record is Done, ID = " + id);
-        System.out.println(session_key);
+        System.out.println("Now session_key - " + session_key);
     }
 }

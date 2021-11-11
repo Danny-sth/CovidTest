@@ -5,6 +5,14 @@ public class Study {
     private String status;
     private String statusText;
 
+    public Study(String id, String isHealthy, String prob, String status, String statusText) {
+        this.id = id;
+        this.isHealthy = isHealthy;
+        this.prob = prob;
+        this.status = status;
+        this.statusText = statusText;
+    }
+
     public void setId(String id) {
         this.id = id;
     }
