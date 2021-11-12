@@ -48,6 +48,8 @@ public class Request {
                     .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
                 System.out.println("Working with next folder");
+                refreshToken();
+                System.out.println("Token is updated");
                 try {
                     List<Path> files = Files.walk(folder)
                             .filter(Files::isRegularFile)
@@ -67,6 +69,12 @@ public class Request {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void refreshToken() {
+        login(Environment.loginEndpoint,
+                Environment.LOGIN,
+                Environment.PASSWORD);
     }
 
     private void doCheck(List<String> idList) {
@@ -127,7 +135,6 @@ public class Request {
 
     private void uploadFile(String mode, File file) {
         System.out.println("Upload is Started for " + file.toPath().getFileName());
-//        System.out.println(session_key);
         try {
             if (session_key == null) {
                 session_key = RestAssured.given()
@@ -145,8 +152,6 @@ public class Request {
             e.printStackTrace();
             uploadFile(mode, file);
         }
-//            System.out.println(session_key);
-//            System.out.println("Upload is Done");
     }
 
     private void createRecord(String mode) {
