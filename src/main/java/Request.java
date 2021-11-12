@@ -18,6 +18,7 @@ public class Request {
     static List<Study> studies = new LinkedList<>();
     private static String token;
     private static String session_key = null;
+    private static int folderCounter = 1;
 
     public void login(String URL,
                       String LOGIN,
@@ -47,7 +48,7 @@ public class Request {
                     .filter(Files::isDirectory)
                     .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
-                System.out.println("Working with next folder");
+                System.out.println("Working with folder number - " + folderCounter);
                 refreshToken();
                 System.out.println("Token is updated");
                 try {
@@ -63,6 +64,7 @@ public class Request {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+                folderCounter += 1;
             }
             System.out.println("Create Files is DONE");
             doCheck(idList);
@@ -77,53 +79,6 @@ public class Request {
                 Environment.PASSWORD);
     }
 
-    private void doCheck(List<String> idList) {
-        LinkedHashMap<?, ?> result_localized;
-        System.out.println("Do check with " + idList);
-        if (idList.isEmpty())
-            return;
-        else {
-            System.out.println("getRecord: List is NOT Empty");
-            for (String id : idList) {
-                Response response = RestAssured.given()
-                        .multiPart("token", token)
-                        .get(Environment.getEndpoint + id +
-                                "?token=" + token);
-                String status = response.getBody().path("status").toString();
-                System.out.println("Status is " + status);
-                if (status.equals("2")) {
-                    System.out.println("Sleep 20 sec");
-                    try {
-                        Thread.sleep(20000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                } else if (status.equals("10")) {
-                    System.out.println("Status Analyzed (10)");
-                    result_localized = response.body().path("result_localized");
-                    studies.add(new Study(
-                            response.body().path("id").toString(),
-                            result_localized.get("is_healthy").toString(),
-                            result_localized.get("prob").toString(),  // prob после теста закоментировать, его вырежут из ответа
-                            response.body().path("status").toString(),
-                            response.body().path("status_text")));
-                    idList.remove(id);
-                    System.out.println("1 study was added, studies - " + studies);
-                } else {
-                    studies.add(new Study(
-                            response.body().path("id").toString(),
-                            null, null,
-                            response.body().path("status").toString(),
-                            response.body().path("status_text")));
-                    idList.remove(id);
-                    System.out.println("1 study was added, studies - " + studies);
-                }
-            }
-        }
-        ExcelTable.fillTable(studies);
-        doCheck(idList);
-    }
-
     private boolean isNotHidden(Path path) {
         try {
             return !Files.isHidden(path);
@@ -134,14 +89,14 @@ public class Request {
     }
 
     private void uploadFile(String mode, File file) {
-        System.out.println("Upload is Started for " + file.toPath().getFileName());
+//        System.out.println("Upload is Started for " + file.toPath().getFileName());
         try {
             if (session_key == null) {
                 session_key = RestAssured.given()
                         .multiPart("file", file, "multipart/form-data")
                         .post(Environment.createFilesEndpoint + "?mode=" + mode + "&token=" + token)
                         .then().extract().response().path("_session_key").toString();
-                System.out.println("First file upload - " + session_key);
+//                System.out.println("First file upload - " + session_key);
             } else {
                 RestAssured.given()
                         .multiPart("file", file, "multipart/form-data")
@@ -166,5 +121,70 @@ public class Request {
         session_key = null;
         System.out.println("Create Record is Done, ID = " + id);
         System.out.println("Now session_key - " + session_key);
+    }
+
+    private static Response response;
+    private static String status;
+
+    private void doCheck(List<String> idList) {
+        System.out.println("Do check with " + idList);
+        if (idList.isEmpty())
+            return;
+        else {
+            System.out.println("doCheck: List is NOT Empty");
+            for (String id : idList) {
+                response = getRequest(id);
+                status = response.getBody().path("status").toString();
+                System.out.println("Status is " + status);
+                while (status.equals("2")) {
+                    System.out.println("Sleep 20 sec");
+                    try {
+                        Thread.sleep(20000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    response = getRequest(id);
+                    status = response.getBody()
+                            .path("status").toString();
+                }
+                addStudies(id);
+            }
+        }
+        System.out.println("doCheck working");
+        ExcelTable.fillTable(studies);
+        System.out.println("doCheck is done");
+    }
+
+    private Response getRequest(String id) {
+        return RestAssured.given()
+                .multiPart("token", token)
+                .get(Environment.getEndpoint + id +
+                        "?token=" + token);
+    }
+
+    public void addStudies(String id) {
+        if (status.equals("10")) {
+            System.out.println("Status Analyzed (10)");
+            LinkedHashMap<?, ?> result_localized =
+                    response.body().path("result_localized");
+            studies.add(new Study(
+                    response.body().path("id").toString(),
+                    result_localized.get("is_healthy").toString(),
+                    result_localized.get("prob").toString(),  // prob после теста закоментировать, его вырежут из ответа
+                    response.body().path("status").toString(),
+                    response.body().path("status_text")));
+            idList.remove(id);
+            System.out.println("1 study was added, studies - " + studies);
+            System.out.println("idList - " + idList);
+        } else {
+            studies.add(new Study(
+                    response.body().path("id").toString(),
+                    null, null,
+                    response.body().path("status").toString(),
+                    response.body().path("status_text")));
+            idList.remove(id);
+            System.out.println("1 study was added, studies - " + studies);
+            System.out.println("idList - " + idList);
+        }
     }
 }

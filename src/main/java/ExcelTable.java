@@ -10,11 +10,11 @@ import java.util.List;
 public class ExcelTable extends XSSFSheet {
 
     private static final File file =
-            new File("/home/danny/covid/table.xlsx");
+            new File(Environment.excelFilePath);
     private static int rowCounter = 0;
 
     public static void fillTable(List<Study> studies) {
-        System.out.println("fillTable is Started, rowCounter is " + rowCounter + "\n" + studies);
+        System.out.println("fillTable is Started, rowCounter is " + rowCounter + "\n" + "study to be filled is - " + studies);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet();
 
@@ -44,14 +44,15 @@ public class ExcelTable extends XSSFSheet {
             statusTextRow.createCell(0).setCellValue("Status Text");
             statusTextRow.createCell(1).setCellValue(study.getStatusText());
             rowCounter += 2;
-                    System.out.println(rowCounter + "\n" + "One study is filled");
+            System.out.println("One study is filled" + "\n" + "rowCounter is - " + rowCounter);
         }
-            try {
-                FileOutputStream outFile = new FileOutputStream(file);
-                workbook.write(outFile);
-                System.out.println("Created file: " + file.getAbsolutePath());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        try {
+            FileOutputStream outFile = new FileOutputStream(file);
+            workbook.write(outFile);
+            System.out.println("Created file: " + file.getAbsolutePath());
+            outFile.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+}
