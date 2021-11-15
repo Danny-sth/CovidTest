@@ -127,6 +127,7 @@ public class Request {
     private static String status;
 
     private void doCheck(List<String> idList) {
+        byte counter = 1;
         System.out.println("Do check with " + idList);
         if (idList.isEmpty())
             return;
@@ -137,9 +138,13 @@ public class Request {
                 status = response.getBody().path("status").toString();
                 System.out.println("Status is " + status);
                 while (status.equals("2")) {
-                    System.out.println("Sleep 20 sec");
+                    if (counter == 13) {
+                        addMessageAboutTimeoutError(id);
+                    }
+                    System.out.println("Sleep 20 sec, number " + counter);
                     try {
-                        Thread.sleep(20000);
+                        counter += 1;
+                        Thread.sleep(30000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -147,6 +152,7 @@ public class Request {
                     status = response.getBody()
                             .path("status").toString();
                 }
+                counter = 1;
                 addStudies(id);
             }
         }
@@ -186,5 +192,12 @@ public class Request {
             System.out.println("1 study was added, studies - " + studies);
             System.out.println("idList - " + idList);
         }
+    }
+
+    private void addMessageAboutTimeoutError(String id) {
+        System.out.println("Adding Message about Timeout Error");
+        studies.add(new Study(response.body().path("id").toString(),
+                null, null, null, "Превышено время ожидания"));
+        idList.remove(id);
     }
 }
