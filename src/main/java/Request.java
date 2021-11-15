@@ -141,7 +141,7 @@ public class Request {
                     if (counter == 13) {
                         addMessageAboutTimeoutError(id);
                     }
-                    System.out.println("Sleep 20 sec, number " + counter);
+                    System.out.println("Sleep 30 sec, number " + counter);
                     try {
                         counter += 1;
                         Thread.sleep(30000);
