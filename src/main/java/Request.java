@@ -137,13 +137,9 @@ public class Request {
                 response = getRequest(id);
                 status = response.getBody().path("status").toString();
                 System.out.println("Status is " + status);
-                while (status.equals("2")) {
-                    if (counter == 13) {
-                        addMessageAboutTimeoutError(id);
-                    }
+                while (status.equals("2") && counter != 13) {
                     System.out.println("Sleep 30 sec, number " + counter);
                     try {
-                        counter += 1;
                         Thread.sleep(30000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -151,14 +147,20 @@ public class Request {
                     response = getRequest(id);
                     status = response.getBody()
                             .path("status").toString();
+                    counter += 1;
                 }
-                counter = 1;
-                addStudies(id);
+                if (counter == 13) {
+                    addMessageAboutTimeoutError(id);
+                    counter = 1;
+                } else {
+                    addStudies(id);
+                    counter = 1;
+                }
             }
+            System.out.println("doCheck working");
+            ExcelTable.fillTable(studies);
+            System.out.println("doCheck is done");
         }
-        System.out.println("doCheck working");
-        ExcelTable.fillTable(studies);
-        System.out.println("doCheck is done");
     }
 
     private Response getRequest(String id) {
