@@ -14,13 +14,20 @@ public class ExcelTable extends XSSFSheet {
     private static int rowCounter = 0;
 
     public static void fillTable(List<Study> studies) {
-        System.out.println("fillTable is Started, rowCounter is " + rowCounter + "\n" + "study to be filled is - " + studies);
+        System.out.println("fillTable is Started, rowCounter is " +
+                rowCounter + "\n" + "study to be filled is - " + studies);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet();
 
         for (Study study : studies) {
+
+            //заполняю строку SeriesInstanceUID
+            Row seriesIdRow = sheet.createRow(rowCounter);
+            seriesIdRow.createCell(0).setCellValue("SeriesInstanceUID");
+            seriesIdRow.createCell(1).setCellValue(study.getSeriesInstanceUID());
+
             //заполняю строку с id
-            Row idRow = sheet.createRow(rowCounter);
+            Row idRow = sheet.createRow(++rowCounter);
             idRow.createCell(0).setCellValue("ID");
             idRow.createCell(1).setCellValue(study.getId());
 
@@ -39,7 +46,7 @@ public class ExcelTable extends XSSFSheet {
             statusRow.createCell(0).setCellValue("Status");
             statusRow.createCell(1).setCellValue(study.getStatus());
 
-            //заполняю строку с status
+            //заполняю строку с status Text
             Row statusTextRow = sheet.createRow(++rowCounter);
             statusTextRow.createCell(0).setCellValue("Status Text");
             statusTextRow.createCell(1).setCellValue(study.getStatusText());

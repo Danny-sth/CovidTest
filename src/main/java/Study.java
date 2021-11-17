@@ -1,11 +1,14 @@
 public class Study {
+
+    private String seriesInstanceUID;
     private String id;
     private String isHealthy;
     private String prob;
     private String status;
     private String statusText;
 
-    public Study(String id, String isHealthy, String prob, String status, String statusText) {
+    public Study(String seriesInstanceUID, String id, String isHealthy, String prob, String status, String statusText) {
+        this.seriesInstanceUID = seriesInstanceUID;
         this.id = id;
         this.isHealthy = isHealthy;
         this.prob = prob;
@@ -51,6 +54,14 @@ public class Study {
 
     public String getStatusText() {
         return statusText;
+    }
+
+    public String getSeriesInstanceUID() {
+        return seriesInstanceUID;
+    }
+
+    public void setSeriesInstanceUID(String seriesInstanceUID) {
+        this.seriesInstanceUID = seriesInstanceUID;
     }
 
     @Override

@@ -36,11 +36,10 @@ public class Request {
         token = request.post(URL)
                 .then().extract().response()
                 .path("token").toString();
-        System.out.println("Login is DONE \n Token is: \n" + token);
+        System.out.println("Login is DONE  Token is: " + token);
     }
 
     public void createFiles(String mode) {
-        System.out.println("Create Files is Started");
         Path rootFolder = Path.of(Environment.rootFolder);
         try {
             // FIXME try to remove rootFolder filter
@@ -50,7 +49,6 @@ public class Request {
             for (Path folder : folders) {
                 System.out.println("Working with folder number - " + folderCounter);
                 refreshToken();
-                System.out.println("Token is updated");
                 try {
                     List<Path> files = Files.walk(folder)
                             .filter(Files::isRegularFile)
@@ -176,6 +174,7 @@ public class Request {
             LinkedHashMap<?, ?> result_localized =
                     response.body().path("result_localized");
             studies.add(new Study(
+                    response.body().path("series_iuid").toString(),
                     response.body().path("id").toString(),
                     result_localized.get("is_healthy").toString(),
                     result_localized.get("prob").toString(),  // prob после теста закоментировать, его вырежут из ответа
@@ -186,6 +185,7 @@ public class Request {
             System.out.println("idList - " + idList);
         } else {
             studies.add(new Study(
+                    response.body().path("series_iuid").toString(),
                     response.body().path("id").toString(),
                     null, null,
                     response.body().path("status").toString(),
@@ -198,7 +198,9 @@ public class Request {
 
     private void addMessageAboutTimeoutError(String id) {
         System.out.println("Adding Message about Timeout Error");
-        studies.add(new Study(response.body().path("id").toString(),
+        studies.add(new Study(
+                response.body().path("series_iuid").toString(),
+                response.body().path("id").toString(),
                 null, null, null, "Превышено время ожидания"));
         idList.remove(id);
     }
