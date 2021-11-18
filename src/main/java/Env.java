@@ -1,4 +1,4 @@
-public class Environment {
+public class Env {
 
     public static final String domen = "webshow.cmai.tech";
     public static final String LOGIN = "qa@cmai.team";

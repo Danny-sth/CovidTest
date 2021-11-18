@@ -10,19 +10,25 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Request {
-    private static final List<String> idList = new CopyOnWriteArrayList<>();
+    private static Set<String> idList = new CopyOnWriteArraySet<>();
     static List<Study> studies = new LinkedList<>();
     private static String token;
     private static String session_key = null;
     private static int folderCounter = 1;
 
-    public void login(String URL,
-                      String LOGIN,
-                      String PASSWORD) {
+    public static final Logger logger =
+            Logger.getLogger(Request.class.getName());
+
+    public void loginOrRefresh(String URL,
+                               String LOGIN,
+                               String PASSWORD) {
         JSONObject requestBody = new JSONObject();
         try {
             requestBody.put("email", LOGIN);
@@ -36,19 +42,23 @@ public class Request {
         token = request.post(URL)
                 .then().extract().response()
                 .path("token").toString();
-        System.out.println("Login is DONE  Token is: " + token);
+        logger.log(Level.INFO,
+                "Login is DONE  Token is: " + token);
     }
 
     public void createFiles(String mode) {
-        Path rootFolder = Path.of(Environment.rootFolder);
+        Path rootFolder = Path.of(Env.rootFolder);
         try {
-            // FIXME try to remove rootFolder filter
             List<Path> folders = Files.walk(rootFolder)
                     .filter(Files::isDirectory)
                     .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
-                System.out.println("Working with folder number - " + folderCounter);
-                refreshToken();
+                logger.log(Level.INFO,
+                        "Working with folder number - " + folderCounter);
+                loginOrRefresh(
+                        Env.loginEndpoint,
+                        Env.LOGIN,
+                        Env.PASSWORD);
                 try {
                     List<Path> files = Files.walk(folder)
                             .filter(Files::isRegularFile)
@@ -57,24 +67,20 @@ public class Request {
                     for (Path file : files) {
                         uploadFile(mode, file.toFile());
                     }
-                    System.out.println("Last File in folder is upload");
+                    logger.log(Level.INFO,
+                            "Last File in folder is upload");
                     createRecord(mode);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 folderCounter += 1;
             }
-            System.out.println("Create Files is DONE");
+            logger.log(Level.INFO,
+                    "Create Files is DONE");
             doCheck(idList);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private void refreshToken() {
-        login(Environment.loginEndpoint,
-                Environment.LOGIN,
-                Environment.PASSWORD);
     }
 
     private boolean isNotHidden(Path path) {
@@ -87,19 +93,17 @@ public class Request {
     }
 
     private void uploadFile(String mode, File file) {
-//        System.out.println("Upload is Started for " + file.toPath().getFileName());
         try {
             if (session_key == null) {
                 session_key = RestAssured.given()
                         .multiPart("file", file, "multipart/form-data")
-                        .post(Environment.createFilesEndpoint + "?mode=" + mode + "&token=" + token)
+                        .post(Env.createFilesEndpoint + "?mode=" + mode + "&token=" + token)
                         .then().extract().response().path("_session_key").toString();
-//                System.out.println("First file upload - " + session_key);
             } else {
                 RestAssured.given()
                         .multiPart("file", file, "multipart/form-data")
                         .multiPart("_session_key", session_key)
-                        .post(Environment.createFilesEndpoint + "?mode=" + mode + "&token=" + token);
+                        .post(Env.createFilesEndpoint + "?mode=" + mode + "&token=" + token);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -108,35 +112,39 @@ public class Request {
     }
 
     private void createRecord(String mode) {
-        System.out.println("Create Record is Started");
+        logger.log(Level.INFO,
+                "Create Record is Started");
         String id = RestAssured.given().multiPart("mode", mode)
                 .multiPart("token", token)
                 .multiPart("_session_key", session_key)
-                .post(Environment.createRecordEndpoint + "?mode=" + mode +
+                .post(Env.createRecordEndpoint + "?mode=" + mode +
                         "&token=" + token + "&_session_key=" + session_key)
                 .then().extract().body().path("id").toString();
         idList.add(id);
         session_key = null;
-        System.out.println("Create Record is Done, ID = " + id);
-        System.out.println("Now session_key - " + session_key);
+        logger.log(Level.INFO,
+                "Create Record is Done, ID = " + id);
     }
 
     private static Response response;
     private static String status;
 
-    private void doCheck(List<String> idList) {
+    private void doCheck(Set<String> idList) {
         byte counter = 1;
-        System.out.println("Do check with " + idList);
+        logger.log(Level.INFO,
+                "Do check with " + idList);
         if (idList.isEmpty())
             return;
         else {
-            System.out.println("doCheck: List is NOT Empty");
+            logger.log(Level.INFO,
+                    "doCheck:List is NOT Empty");
             for (String id : idList) {
                 response = getRequest(id);
                 status = response.getBody().path("status").toString();
                 System.out.println("Status is " + status);
                 while (status.equals("2") && counter != 13) {
-                    System.out.println("Sleep 30 sec, number " + counter);
+                    logger.log(Level.INFO,
+                            "Sleep 30 sec, number " + counter);
                     try {
                         Thread.sleep(30000);
                     } catch (InterruptedException e) {
@@ -155,22 +163,21 @@ public class Request {
                     counter = 1;
                 }
             }
-            System.out.println("doCheck working");
             ExcelTable.fillTable(studies);
-            System.out.println("doCheck is done");
         }
     }
 
     private Response getRequest(String id) {
         return RestAssured.given()
                 .multiPart("token", token)
-                .get(Environment.getEndpoint + id +
+                .get(Env.getEndpoint + id +
                         "?token=" + token);
     }
 
     public void addStudies(String id) {
         if (status.equals("10")) {
-            System.out.println("Status Analyzed (10)");
+            logger.log(Level.INFO,
+                    "Status is Analyzed - 10");
             LinkedHashMap<?, ?> result_localized =
                     response.body().path("result_localized");
             studies.add(new Study(
@@ -181,8 +188,8 @@ public class Request {
                     response.body().path("status").toString(),
                     response.body().path("status_text")));
             idList.remove(id);
-            System.out.println("1 study was added, studies - " + studies);
-            System.out.println("idList - " + idList);
+            logger.log(Level.INFO,
+                    "1 study was added, studies - " + studies);
         } else {
             studies.add(new Study(
                     response.body().path("series_iuid").toString(),
@@ -191,13 +198,14 @@ public class Request {
                     response.body().path("status").toString(),
                     response.body().path("status_text")));
             idList.remove(id);
-            System.out.println("1 study was added, studies - " + studies);
-            System.out.println("idList - " + idList);
+            logger.log(Level.INFO,
+                    "1 study was added, studies - " + studies);
         }
     }
 
     private void addMessageAboutTimeoutError(String id) {
-        System.out.println("Adding Message about Timeout Error");
+        logger.log(Level.INFO,
+                "Adding Message about Timeout Error");
         studies.add(new Study(
                 response.body().path("series_iuid").toString(),
                 response.body().path("id").toString(),

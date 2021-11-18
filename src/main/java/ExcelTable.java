@@ -10,7 +10,7 @@ import java.util.List;
 public class ExcelTable extends XSSFSheet {
 
     private static final File file =
-            new File(Environment.excelFilePath);
+            new File(Env.excelFilePath);
     private static int rowCounter = 0;
 
     public static void fillTable(List<Study> studies) {
