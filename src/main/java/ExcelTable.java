@@ -6,16 +6,21 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ExcelTable extends XSSFSheet {
 
+    public static final Logger logger =
+            Logger.getLogger(ExcelTable.class.getName());
     private static final File file =
-            new File(Env.excelFilePath);
+            new File(Env.FILE_PATH);
     private static int rowCounter = 0;
 
     public static void fillTable(List<Study> studies) {
-        System.out.println("fillTable is Started, rowCounter is " +
-                rowCounter + "\n" + "study to be filled is - " + studies);
+        logger.log(Level.INFO,
+                "fillTable is Started, rowCounter is " +
+                        rowCounter + "\n" + "study to be filled is - " + studies);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet();
 
@@ -51,12 +56,14 @@ public class ExcelTable extends XSSFSheet {
             statusTextRow.createCell(0).setCellValue("Status Text");
             statusTextRow.createCell(1).setCellValue(study.getStatusText());
             rowCounter += 2;
-            System.out.println("One study is filled" + "\n" + "rowCounter is - " + rowCounter);
+            logger.log(Level.INFO,
+                    "One study is filled" + "\n" + "rowCounter is - " + rowCounter);
         }
         try {
             FileOutputStream outFile = new FileOutputStream(file);
             workbook.write(outFile);
-            System.out.println("Created file: " + file.getAbsolutePath());
+            logger.log(Level.INFO,
+                    "Created file: " + file.getAbsolutePath());
             outFile.close();
         } catch (IOException e) {
             e.printStackTrace();

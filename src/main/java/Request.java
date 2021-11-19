@@ -1,6 +1,7 @@
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import org.codehaus.groovy.transform.sc.transformers.StaticMethodCallExpressionTransformer;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -47,7 +48,7 @@ public class Request {
     }
 
     public void createFiles(String mode) {
-        Path rootFolder = Path.of(Env.rootFolder);
+        Path rootFolder = Path.of(Env.ROOT_FOLDER);
         try {
             List<Path> folders = Files.walk(rootFolder)
                     .filter(Files::isDirectory)
