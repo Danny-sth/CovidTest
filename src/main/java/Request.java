@@ -1,7 +1,6 @@
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import org.codehaus.groovy.transform.sc.transformers.StaticMethodCallExpressionTransformer;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -13,19 +12,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Request {
-    private static Set<String> idList = new CopyOnWriteArraySet<>();
     static List<Study> studies = new LinkedList<>();
+    private static Set<String> idList = new CopyOnWriteArraySet<>();
     private static String token;
     private static String session_key = null;
     private static int folderCounter = 1;
-
-    public static final Logger logger =
-            Logger.getLogger(Request.class.getName());
+    private static Response response;
+    private static String status;
 
     public void loginOrRefresh(String URL,
                                String LOGIN,
@@ -43,8 +39,7 @@ public class Request {
         token = request.post(URL)
                 .then().extract().response()
                 .path("token").toString();
-        logger.log(Level.INFO,
-                "Login is DONE  Token is: " + token);
+        System.out.println("Refresh Token");
     }
 
     public void createFiles(String mode) {
@@ -54,8 +49,7 @@ public class Request {
                     .filter(Files::isDirectory)
                     .filter(p -> !p.equals(rootFolder)).collect(Collectors.toList());
             for (Path folder : folders) {
-                logger.log(Level.INFO,
-                        "Working with folder number - " + folderCounter);
+                System.out.println("Working with folder number - " + folderCounter);
                 loginOrRefresh(
                         Env.loginEndpoint,
                         Env.LOGIN,
@@ -68,16 +62,14 @@ public class Request {
                     for (Path file : files) {
                         uploadFile(mode, file.toFile());
                     }
-                    logger.log(Level.INFO,
-                            "Last File in folder is upload");
+                    System.out.println("Last file in folder is upload");
                     createRecord(mode);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 folderCounter += 1;
             }
-            logger.log(Level.INFO,
-                    "Create Files is DONE");
+            System.out.println("All files is upload");
             doCheck(idList);
         } catch (IOException e) {
             e.printStackTrace();
@@ -113,8 +105,6 @@ public class Request {
     }
 
     private void createRecord(String mode) {
-        logger.log(Level.INFO,
-                "Create Record is Started");
         String id = RestAssured.given().multiPart("mode", mode)
                 .multiPart("token", token)
                 .multiPart("_session_key", session_key)
@@ -123,29 +113,20 @@ public class Request {
                 .then().extract().body().path("id").toString();
         idList.add(id);
         session_key = null;
-        logger.log(Level.INFO,
-                "Create Record is Done, ID = " + id);
+        System.out.println("Record ID = " + id);
     }
-
-    private static Response response;
-    private static String status;
 
     private void doCheck(Set<String> idList) {
         byte counter = 1;
-        logger.log(Level.INFO,
-                "Do check with " + idList);
         if (idList.isEmpty())
             return;
         else {
-            logger.log(Level.INFO,
-                    "doCheck:List is NOT Empty");
             for (String id : idList) {
                 response = getRequest(id);
                 status = response.getBody().path("status").toString();
                 System.out.println("Status is " + status);
                 while (status.equals("2") && counter != 13) {
-                    logger.log(Level.INFO,
-                            "Sleep 30 sec, number " + counter);
+                    System.out.println("Sleep 30 sec, number " + counter);
                     try {
                         Thread.sleep(30000);
                     } catch (InterruptedException e) {
@@ -177,8 +158,6 @@ public class Request {
 
     public void addStudies(String id) {
         if (status.equals("10")) {
-            logger.log(Level.INFO,
-                    "Status is Analyzed - 10");
             LinkedHashMap<?, ?> result_localized =
                     response.body().path("result_localized");
             studies.add(new Study(
@@ -189,24 +168,21 @@ public class Request {
                     response.body().path("status").toString(),
                     response.body().path("status_text")));
             idList.remove(id);
-            logger.log(Level.INFO,
-                    "1 study was added, studies - " + studies);
+            System.out.println("1 study was added, studies - " + studies);
         } else {
             studies.add(new Study(
-                    response.body().path("series_iuid").toString(),
+                    null,
                     response.body().path("id").toString(),
                     null, null,
                     response.body().path("status").toString(),
                     response.body().path("status_text")));
             idList.remove(id);
-            logger.log(Level.INFO,
-                    "1 study was added, studies - " + studies);
+            System.out.println("1 study was added, studies - " + studies);
         }
     }
 
     private void addMessageAboutTimeoutError(String id) {
-        logger.log(Level.INFO,
-                "Adding Message about Timeout Error");
+        System.out.println("Adding Message about Timeout Error");
         studies.add(new Study(
                 response.body().path("series_iuid").toString(),
                 response.body().path("id").toString(),
