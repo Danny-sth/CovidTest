@@ -1,9 +1,9 @@
 public class Env {
 
-    public static String DOMEN = "webshow.cmai.tech";
-    public static String LOGIN = "qa@cmai.team";
-    public static String PASSWORD = "wkzgNJhXShDhNdfmyshEkpzVeMPxGc";
-    public static String MODE = "ct_lung_screening_covid";
+    public static String DOMEN = "";
+    public static String LOGIN = "";
+    public static String PASSWORD = "";
+    public static String MODE = "";
     public static String ROOT_FOLDER = "/home/danny/covid/";
     public static String FILE_NAME = "table.xlsx";
     public static final String FILE_PATH = ROOT_FOLDER + FILE_NAME;
